@@ -1,0 +1,4 @@
+model,quality_score
+llama3.1,41.67
+llama3.2,28.33
+qwen2.5,50.83

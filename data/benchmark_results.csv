@@ -1,0 +1,4 @@
+model,latency_seconds,tokens_generated,tokens_per_second,peak_memory_mb
+llama3.1,9.721,201,20.68,108.84
+llama3.2,6.234,274,43.95,108.84
+qwen2.5,9.157,172,18.78,54.66

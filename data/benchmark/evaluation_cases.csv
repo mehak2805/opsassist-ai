@@ -1,0 +1,11 @@
+ticket,expected_points
+"I cannot access UKG on my new phone","UKG application access;company access URL or access code;internet connection;escalation if unresolved"
+"I forgot my password and cannot login","password reset;identity verification;login retry;escalation if reset fails"
+"My account is locked","account unlock;identity verification;login retry;escalation if administrative intervention required"
+"VPN is not connecting","VPN troubleshooting;network connection;escalation if unresolved"
+"Outlook is not receiving emails","email troubleshooting;connectivity check;escalation if unresolved"
+"Microsoft Authenticator is not working","MFA troubleshooting;authentication verification;escalation if unresolved"
+"My laptop is not turning on","hardware troubleshooting;power check;escalation if hardware failure"
+"Microsoft Teams is showing an error","Teams troubleshooting;application restart;escalation if unresolved"
+"I need access to a new application","access verification;required permissions;escalation if approval or administrative action required"
+"Company portal is not opening","portal troubleshooting;connectivity check;escalation if unresolved"

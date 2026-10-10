@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import plotly.express as px
 
 from src.chat.assistant import process_ticket
 from src.chat.chat_assistant import chat_with_assistant
@@ -7,23 +8,73 @@ from src.worknotes.worknotes import generate_work_notes
 from src.recommender.recommender import generate_recommendation
 
 
+# ============================================================
+# PAGE CONFIG
+# ============================================================
+
 st.set_page_config(
     page_title="OpsAssist AI",
     page_icon="🤖",
     layout="wide"
 )
 
+
+# ============================================================
+# DARK UI
+# ============================================================
+
+st.markdown(
+    """
+    <style>
+        .stApp {
+            background-color: #080b14;
+        }
+
+        [data-testid="stMetric"] {
+            background-color: #111827;
+            border: 1px solid #263653;
+            padding: 18px;
+            border-radius: 14px;
+        }
+
+        [data-testid="stMetricLabel"] {
+            color: #9ca9c2;
+        }
+
+        [data-testid="stMetricValue"] {
+            color: white;
+        }
+
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 10px;
+        }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
+
+# ============================================================
+# HEADER
+# ============================================================
+
 st.title("🤖 OpsAssist AI")
 st.subheader("AI-Powered IT Operations & Service Desk Copilot")
 
-st.sidebar.title("OpsAssist AI")
+
+# ============================================================
+# SIDEBAR
+# ============================================================
+
+st.sidebar.title("🤖 OpsAssist AI")
 
 mode = st.sidebar.radio(
     "Select Mode",
     [
         "Ticket Analyzer",
         "IT Support Chat",
-        "Model Benchmark"
+        "Model Benchmark",
+        "Analytics Dashboard"
     ]
 )
 
@@ -42,7 +93,7 @@ if mode == "Ticket Analyzer":
         height=150
     )
 
-    if st.button("Analyze Ticket"):
+    if st.button("Analyze Ticket", type="primary"):
 
         if ticket_text.strip():
 
@@ -72,16 +123,10 @@ if mode == "Ticket Analyzer":
             st.write(ai_response)
 
             st.subheader("📝 ServiceNow Work Notes")
-            st.code(
-                work_notes,
-                language="text"
-            )
+            st.code(work_notes, language="text")
 
             st.subheader("💡 Resolution Recommendation")
-            st.code(
-                recommendation,
-                language="text"
-            )
+            st.code(recommendation, language="text")
 
         else:
             st.warning("Please enter a ticket.")
@@ -150,7 +195,7 @@ elif mode == "IT Support Chat":
 # MODEL BENCHMARK
 # ============================================================
 
-else:
+elif mode == "Model Benchmark":
 
     st.header("📊 AI Model Benchmark")
 
@@ -159,52 +204,35 @@ else:
         "based on quality, speed, memory usage and overall score."
     )
 
-    benchmark_file = "data/benchmark_results.csv"
-    quality_file = "data/benchmark_quality_results.csv"
     scores_file = "data/model_scores.csv"
 
     try:
 
-        benchmark_df = pd.read_csv(
-            benchmark_file
-        )
-
-        quality_df = pd.read_csv(
-            quality_file
-        )
-
-        scores_df = pd.read_csv(
-            scores_file
-        )
+        scores_df = pd.read_csv(scores_file)
 
         winner = scores_df.iloc[0]
-
-        st.subheader("🏆 Winning Model")
 
         col1, col2 = st.columns(2)
 
         with col1:
             st.metric(
-                "Best Model",
+                "🏆 Best Model",
                 winner["model"]
             )
 
         with col2:
             st.metric(
                 "Overall Score",
-                f"{winner['overall_score']}/100"
+                f"{winner['overall_score']:.2f}"
             )
 
         st.subheader("📋 Model Comparison")
 
         display_columns = [
             "model",
-            "latency_seconds",
+            "quality_score",
             "tokens_per_second",
             "peak_memory_mb",
-            "quality_score",
-            "speed_score",
-            "memory_score",
             "overall_score",
             "rank"
         ]
@@ -215,49 +243,397 @@ else:
             hide_index=True
         )
 
-        st.subheader("🎯 Quality Score")
+        col1, col2 = st.columns(2)
 
-        quality_chart = scores_df[
-            ["model", "quality_score"]
-        ].set_index("model")
+        with col1:
 
-        st.bar_chart(
-            quality_chart
+            quality_fig = px.bar(
+                scores_df,
+                x="model",
+                y="quality_score",
+                title="Quality Score"
+            )
+
+            quality_fig.update_layout(
+                template="plotly_dark"
+            )
+
+            st.plotly_chart(
+                quality_fig,
+                use_container_width=True
+            )
+
+        with col2:
+
+            speed_fig = px.bar(
+                scores_df,
+                x="model",
+                y="tokens_per_second",
+                title="Speed — Tokens / Second"
+            )
+
+            speed_fig.update_layout(
+                template="plotly_dark"
+            )
+
+            st.plotly_chart(
+                speed_fig,
+                use_container_width=True
+            )
+
+    except FileNotFoundError:
+
+        st.error(
+            "model_scores.csv was not found."
         )
 
-        st.subheader("⚡ Speed")
 
-        speed_chart = scores_df[
-            ["model", "tokens_per_second"]
-        ].set_index("model")
+# ============================================================
+# ANALYTICS DASHBOARD
+# ============================================================
 
-        st.bar_chart(
-            speed_chart
+else:
+
+    st.title("📊 OpsAssist AI Analytics Dashboard")
+
+    st.caption(
+        "AI model performance and operational intelligence overview"
+    )
+
+    st.divider()
+
+    try:
+
+        scores_df = pd.read_csv(
+            "data/model_scores.csv"
         )
 
-        st.subheader("💾 Memory Usage")
+        # ----------------------------------------------------
+        # SORT MODELS
+        # ----------------------------------------------------
 
-        memory_chart = scores_df[
-            ["model", "peak_memory_mb"]
-        ].set_index("model")
+        scores_df = scores_df.sort_values(
+            "overall_score",
+            ascending=False
+        ).reset_index(drop=True)
 
-        st.bar_chart(
-            memory_chart
+        # ----------------------------------------------------
+        # BASIC CALCULATIONS
+        # ----------------------------------------------------
+
+        total_models = len(scores_df)
+
+        best_model = scores_df.iloc[0]["model"]
+
+        best_score = float(
+            scores_df.iloc[0]["overall_score"]
         )
 
-        st.subheader("🏅 Overall Model Score")
+        average_quality = float(
+            scores_df["quality_score"].mean()
+        )
 
-        overall_chart = scores_df[
-            ["model", "overall_score"]
-        ].set_index("model")
+        fastest_model = scores_df.loc[
+            scores_df["tokens_per_second"].idxmax(),
+            "model"
+        ]
 
-        st.bar_chart(
-            overall_chart
+        lowest_memory_model = scores_df.loc[
+            scores_df["peak_memory_mb"].idxmin(),
+            "model"
+        ]
+
+        # ----------------------------------------------------
+        # KPI CARDS
+        # ----------------------------------------------------
+
+        st.subheader("📈 Key Performance Indicators")
+
+        col1, col2, col3, col4, col5 = st.columns(5)
+
+        with col1:
+            st.metric(
+                "AI Models Tested",
+                total_models
+            )
+
+        with col2:
+            st.metric(
+                "🏆 Best Model",
+                best_model
+            )
+
+        with col3:
+            st.metric(
+                "Overall Score",
+                f"{best_score:.2f}"
+            )
+
+        with col4:
+            st.metric(
+                "Average Quality",
+                f"{average_quality:.2f}"
+            )
+
+        with col5:
+            st.metric(
+                "⚡ Fastest Model",
+                fastest_model
+            )
+
+        st.divider()
+
+        # ----------------------------------------------------
+        # MODEL PERFORMANCE SECTION
+        # ----------------------------------------------------
+
+        st.subheader("🏆 Model Performance")
+
+        left, middle, right = st.columns([1.4, 1, 1])
+
+        # ----------------------------------------------------
+        # LEFT — RANKING
+        # ----------------------------------------------------
+
+        with left:
+
+            st.markdown("### 🥇 AI Model Ranking")
+
+            ranking_df = scores_df[
+                [
+                    "model",
+                    "quality_score",
+                    "overall_score",
+                    "rank"
+                ]
+            ].copy()
+
+            ranking_df["rank"] = ranking_df["rank"].astype(int)
+
+            st.dataframe(
+                ranking_df,
+                use_container_width=True,
+                hide_index=True
+            )
+
+        # ----------------------------------------------------
+        # MIDDLE — QUALITY
+        # ----------------------------------------------------
+
+        with middle:
+
+            st.markdown("### 🎯 Quality")
+
+            quality_fig = px.bar(
+                scores_df,
+                x="model",
+                y="quality_score",
+                text="quality_score"
+            )
+
+            quality_fig.update_traces(
+                texttemplate="%{text:.1f}",
+                textposition="outside"
+            )
+
+            quality_fig.update_layout(
+                template="plotly_dark",
+                height=350,
+                margin=dict(
+                    l=10,
+                    r=10,
+                    t=20,
+                    b=10
+                ),
+                xaxis_title="",
+                yaxis_title=""
+            )
+
+            st.plotly_chart(
+                quality_fig,
+                use_container_width=True
+            )
+
+        # ----------------------------------------------------
+        # RIGHT — SPEED
+        # ----------------------------------------------------
+
+        with right:
+
+            st.markdown("### ⚡ Speed")
+
+            speed_fig = px.bar(
+                scores_df,
+                x="model",
+                y="tokens_per_second",
+                text="tokens_per_second"
+            )
+
+            speed_fig.update_traces(
+                texttemplate="%{text:.1f}",
+                textposition="outside"
+            )
+
+            speed_fig.update_layout(
+                template="plotly_dark",
+                height=350,
+                margin=dict(
+                    l=10,
+                    r=10,
+                    t=20,
+                    b=10
+                ),
+                xaxis_title="",
+                yaxis_title=""
+            )
+
+            st.plotly_chart(
+                speed_fig,
+                use_container_width=True
+            )
+
+        # ----------------------------------------------------
+        # SECOND ROW
+        # ----------------------------------------------------
+
+        st.subheader("📊 Performance Analysis")
+
+        col1, col2 = st.columns(2)
+
+        # ----------------------------------------------------
+        # MEMORY
+        # ----------------------------------------------------
+
+        with col1:
+
+            st.markdown("### 💾 Memory Usage")
+
+            memory_fig = px.bar(
+                scores_df,
+                x="model",
+                y="peak_memory_mb",
+                text="peak_memory_mb"
+            )
+
+            memory_fig.update_traces(
+                texttemplate="%{text:.1f} MB",
+                textposition="outside"
+            )
+
+            memory_fig.update_layout(
+                template="plotly_dark",
+                height=400,
+                xaxis_title="AI Model",
+                yaxis_title="Memory (MB)"
+            )
+
+            st.plotly_chart(
+                memory_fig,
+                use_container_width=True
+            )
+
+        # ----------------------------------------------------
+        # OVERALL SCORE
+        # ----------------------------------------------------
+
+        with col2:
+
+            st.markdown("### 🏅 Overall Model Score")
+
+            overall_fig = px.bar(
+                scores_df,
+                x="model",
+                y="overall_score",
+                text="overall_score"
+            )
+
+            overall_fig.update_traces(
+                texttemplate="%{text:.2f}",
+                textposition="outside"
+            )
+
+            overall_fig.update_layout(
+                template="plotly_dark",
+                height=400,
+                xaxis_title="AI Model",
+                yaxis_title="Overall Score"
+            )
+
+            st.plotly_chart(
+                overall_fig,
+                use_container_width=True
+            )
+
+        # ----------------------------------------------------
+        # AI INSIGHTS
+        # ----------------------------------------------------
+
+        st.subheader("🤖 AI Performance Insights")
+
+        insight1, insight2, insight3 = st.columns(3)
+
+        with insight1:
+
+            st.info(
+                f"🏆 **Best Overall**\n\n"
+                f"{best_model} achieved the highest "
+                f"overall score of **{best_score:.2f}**."
+            )
+
+        with insight2:
+
+            fastest_speed = scores_df[
+                "tokens_per_second"
+            ].max()
+
+            st.success(
+                f"⚡ **Fastest Model**\n\n"
+                f"{fastest_model} generated "
+                f"**{fastest_speed:.2f} tokens/sec**."
+            )
+
+        with insight3:
+
+            lowest_memory = scores_df[
+                "peak_memory_mb"
+            ].min()
+
+            st.warning(
+                f"💾 **Most Memory Efficient**\n\n"
+                f"{lowest_memory_model} used "
+                f"**{lowest_memory:.2f} MB** peak memory."
+            )
+
+        # ----------------------------------------------------
+        # FINAL COMPARISON TABLE
+        # ----------------------------------------------------
+
+        st.subheader("📋 Complete Model Comparison")
+
+        st.dataframe(
+            scores_df[
+                [
+                    "model",
+                    "quality_score",
+                    "tokens_per_second",
+                    "peak_memory_mb",
+                    "overall_score",
+                    "rank"
+                ]
+            ],
+            use_container_width=True,
+            hide_index=True
         )
 
     except FileNotFoundError:
 
         st.error(
-            "Benchmark results are not available. "
-            "Please run the benchmark and scoring scripts first."
+            "❌ data/model_scores.csv was not found. "
+            "Please run your benchmark and scoring scripts first."
+        )
+
+    except Exception as e:
+
+        st.error(
+            f"❌ Dashboard error: {e}"
         )

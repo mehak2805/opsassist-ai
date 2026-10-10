@@ -1,4 +1,25 @@
-import ollama
+
+import os
+import streamlit as st
+from ollama import Client
+
+
+def get_ollama_client():
+    try:
+        api_key = st.secrets["OLLAMA_API_KEY"]
+    except Exception:
+        api_key = os.getenv("OLLAMA_API_KEY")
+
+    if not api_key:
+        raise RuntimeError(
+            "OLLAMA_API_KEY is missing. Add it to Streamlit Cloud Secrets."
+        )
+
+    return Client(
+        host="https://ollama.com",
+        headers={"Authorization": f"Bearer {api_key}"},
+        timeout=120,
+    )
 
 
 def generate_work_notes(ticket_text, category, resolution):
@@ -37,48 +58,35 @@ Details:
 STRICT RULES:
 
 1. Never invent an action performed by the user or IT agent.
-2. Never say the user restarted, tested, verified, entered,
-   reinstalled, contacted, or attempted anything unless it is
-   explicitly stated in the Ticket or Resolution.
+2. Never claim an action was performed unless explicitly stated.
 3. Recommendations are NOT completed actions.
-4. Do not put recommendations under "Details".
-5. Do not put recommendations under "Action items".
-6. "Action items" must contain ONLY:
+4. Do not put recommendations under Details or Action items.
+5. Action items must contain ONLY:
    "Follow up Needed"
    OR
    "Follow up not needed"
-7. If no action was actually completed, do not create one.
-8. If the issue is unresolved, use:
-   Follow up Needed
-9. If the issue is clearly resolved, use:
-   Follow up not needed
-10. Do not invent URLs, access codes, policies, approvals,
-    error messages, or technical details.
-11. Do not add headings, explanations, introductions, or
-    commentary outside the required format.
-
-IMPORTANT:
-The Resolution may contain recommended troubleshooting.
-Do NOT treat recommended, suggested, should, ask the user to,
-or need to as completed actions.
-
-Example of INVALID detail:
-- User entered the correct access code.
-
-Example of VALID detail:
-- User reported that UKG could not be accessed on a new phone.
+6. If no action was completed, do not invent one.
+7. If the issue is unresolved, use "Follow up Needed".
+8. If the issue is clearly resolved, use "Follow up not needed".
+9. Do not invent URLs, access codes, policies, approvals,
+   error messages, or technical details.
+10. Do not add explanations outside the four required sections.
+11. Do not treat recommended or suggested troubleshooting as
+    a completed action.
 
 Return ONLY the four required sections.
 """
 
-    response = ollama.chat(
-        model="llama3.2",
+    client = get_ollama_client()
+
+    response = client.chat(
+        model="gpt-oss:120b",
         messages=[
             {
                 "role": "user",
-                "content": prompt
+                "content": prompt,
             }
-        ]
+        ],
     )
 
-    return response["message"]["content"]
+    return response.message.content

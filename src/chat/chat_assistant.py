@@ -1,59 +1,41 @@
-import ollama
 
 from src.rag.rag_pipeline import get_context
+from src.cloud_llm import generate_cloud_response
 
 
 def chat_with_assistant(user_message, conversation_history=None):
-
     if conversation_history is None:
         conversation_history = []
 
-    context, results = get_context(
-        user_message,
-        top_k=2
-    )
+    context, results = get_context(user_message, top_k=2)
 
     system_prompt = f"""
 You are OpsAssist AI, an IT Service Desk Copilot.
 
-Your role is to help IT support agents and users troubleshoot
-common IT issues.
-
-Use the provided Knowledge Base to give accurate answers.
-
-KNOWLEDGE BASE:
+Knowledge Base:
 {context}
 
-RULES:
-1. Use only relevant information from the Knowledge Base.
-2. Do not invent procedures, policies, URLs, access codes, or technical details.
-3. Do not recommend unrelated troubleshooting steps.
-4. If the Knowledge Base does not contain enough information, clearly say
-   that further investigation or escalation is required.
-5. Ask a clarifying question when the user's issue is unclear.
-6. Keep responses concise and professional.
-7. Remember the previous conversation when answering follow-up questions.
+Rules:
+1. Use relevant knowledge-base information.
+2. Never invent procedures, policies, URLs or access codes.
+3. If information is insufficient, say further investigation
+   or escalation is required.
+4. Ask a clarifying question when the issue is unclear.
+5. Keep responses concise and professional.
+6. Use the supplied conversation history for context.
 """
 
-    messages = [
-        {
-            "role": "system",
-            "content": system_prompt
-        }
-    ]
+    messages = [{"role": "system", "content": system_prompt}]
 
-    messages.extend(conversation_history)
+    # Keep only valid conversational messages.
+    for message in conversation_history:
+        if message.get("role") in ("user", "assistant"):
+            messages.append({
+                "role": message["role"],
+                "content": message["content"],
+            })
 
-    messages.append(
-        {
-            "role": "user",
-            "content": user_message
-        }
+    return generate_cloud_response(
+        user_message,
+        conversation_history=messages,
     )
-
-    response = ollama.chat(
-        model="llama3.2",
-        messages=messages
-    )
-
-    return response["message"]["content"]
